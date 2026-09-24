@@ -4,9 +4,6 @@ import com.revconnect.revconnect.post.dto.PostRequest;
 import com.revconnect.revconnect.post.dto.PostResponse;
 import com.revconnect.revconnect.post.service.PostService;
 
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -44,45 +41,6 @@ public class PostController {
 
         return ResponseEntity.ok(
                 postService.createPost(userId, photo, caption)
-        );
-    }
-
-    /**
-     * Get published feed posts with pagination.
-     *
-     * Example:
-     * /api/posts?page=0&size=10
-     *
-     * page = page number starting from 0
-     * size = number of posts per page
-     *
-     * Posts are returned newest first.
-     */
-    @GetMapping
-    public ResponseEntity<?> getFeedPosts(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
-
-        // Prevent invalid page numbers
-        int pageNumber = Math.max(page, 0);
-
-        // Keep page size between 1 and 20
-        int pageSize = Math.min(
-                Math.max(size, 1),
-                20
-        );
-
-        Pageable pageable = PageRequest.of(
-                pageNumber,
-                pageSize,
-                Sort.by(
-                        Sort.Direction.DESC,
-                        "createdAt"
-                )
-        );
-
-        return ResponseEntity.ok(
-                postService.getPublishedPosts(pageable)
         );
     }
 

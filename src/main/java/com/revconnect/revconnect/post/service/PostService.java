@@ -7,8 +7,6 @@ import com.revconnect.revconnect.post.repository.PostRepository;
 import com.revconnect.revconnect.user.entity.User;
 import com.revconnect.revconnect.user.repository.UserRepository;
 
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -165,17 +163,6 @@ public class PostService {
                             + e.getMessage()
             );
         }
-    }
-
-    public Page<PostResponse> getPublishedPosts(
-            Pageable pageable) {
-
-        return postRepository
-                .findByStatusOrderByCreatedAtDesc(
-                        "PUBLISHED",
-                        pageable
-                )
-                .map(this::createPostResponse);
     }
 
     public List<PostResponse> getMyPosts(Long userId) {

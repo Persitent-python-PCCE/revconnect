@@ -368,8 +368,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // =====================================================
     // 5. LOAD FEED POSTS
-    // GET /api/posts?page=0&size=10
-    // =====================================================
+// GET /api/feed?page=0&size=10
+// =====================================================
 
     async function loadFeedPosts(reset = true) {
 
@@ -412,7 +412,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         try {
 
             const response = await fetch(
-                `/api/posts?page=${feedPage}&size=${FEED_PAGE_SIZE}`,
+                `/api/feed?page=${feedPage}&size=${FEED_PAGE_SIZE}`,
                 {
                     method: "GET",
                     headers: {
