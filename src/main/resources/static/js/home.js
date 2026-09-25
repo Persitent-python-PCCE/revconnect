@@ -1532,4 +1532,29 @@ document.addEventListener("DOMContentLoaded", async () => {
         );
     }
 
+    // --- Search Functionality ---
+    const searchInput = document.querySelector(".search-box input");
+    if (searchInput) {
+        searchInput.addEventListener("keypress", async (e) => {
+            if (e.key === "Enter" && searchInput.value.trim()) {
+                const query = searchInput.value.trim();
+                try {
+                    const response = await fetch(`/api/user/search?q=${encodeURIComponent(query)}`, {
+                        headers: { "Authorization": `Bearer ${token}` }
+                    });
+                    if (response.ok) {
+                        const users = await response.json();
+                        if (users && users.length > 0) {
+                            // Just jump to the first user for demonstration
+                            window.location.href = `/profile.html?userId=${users[0].id}`;
+                        } else {
+                            alert("No users found matching: " + query);
+                        }
+                    }
+                } catch(err) {
+                    console.error("Search failed", err);
+                }
+            }
+        });
+    }
 });

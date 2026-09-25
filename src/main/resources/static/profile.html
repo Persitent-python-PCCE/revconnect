@@ -90,6 +90,9 @@
                         class="profile-bio">
                     Loading...
                 </p>
+                
+                <div id="relationshipActions" class="mt-3 d-flex gap-2" style="display: none !important;">
+                </div>
 
             </div>
 
@@ -105,14 +108,29 @@
                 <span>Posts</span>
             </div>
 
-            <div>
-                <strong>0</strong>
+            <div id="statFollowers" style="cursor: pointer;">
+                <strong id="countFollowers">0</strong>
                 <span>Followers</span>
             </div>
 
-            <div>
-                <strong>0</strong>
+            <div id="statFollowing" style="cursor: pointer;">
+                <strong id="countFollowing">0</strong>
                 <span>Following</span>
+            </div>
+
+            <div id="statConnections" style="cursor: pointer;">
+                <strong id="countConnections">0</strong>
+                <span>Connections</span>
+            </div>
+
+            <div id="statPending" style="cursor: pointer; display: none;">
+                <strong id="countPending">0</strong>
+                <span>Requests</span>
+            </div>
+
+            <div id="statSent" style="cursor: pointer; display: none;">
+                <strong id="countSent">0</strong>
+                <span>Sent</span>
             </div>
 
         </div>
@@ -234,6 +252,23 @@
 </div>
 
 
+<!-- Generic List Modal -->
+<div id="listModal" class="ig-modal-overlay" style="display: none;">
+    <div class="ig-modal-dialog" style="max-width: 400px;">
+        <div class="ig-modal-header">
+            <span class="ig-modal-title" id="listModalTitle">List</span>
+            <div class="ig-header-right">
+                <button type="button" class="ig-header-icon-btn" id="listModalCloseBtn" title="Close">
+                    <span style="font-size: 1.5rem;">&times;</span>
+                </button>
+            </div>
+        </div>
+        <div class="ig-modal-body" style="padding: 1rem; max-height: 400px; overflow-y: auto;" id="listModalBody">
+        </div>
+    </div>
+</div>
+
+<script src="/js/api/connectionApi.js"></script>
 <script src="/js/profile.js"></script>
 
 </body>

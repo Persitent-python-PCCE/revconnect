@@ -78,4 +78,34 @@ public class UserService {
                 profile.getPrivacy()
         );
     }
+
+    public ProfileResponse getUserProfile(Long userId) {
+        User user = userRepository
+                .findById(userId)
+                .orElseThrow(() ->
+                        new RuntimeException("User not found"));
+
+        Profile profile = profileRepository
+                .findByUserId(user.getId())
+                .orElseThrow(() ->
+                        new RuntimeException("Profile not found"));
+
+        return new ProfileResponse(
+                user.getId(),
+                user.getUsername(),
+                user.getEmail(),
+                user.getAccountType(),
+                profile.getFullName(),
+                profile.getBio(),
+                profile.getProfilePicture(),
+                profile.getPrivacy()
+        );
+    }
+
+    public java.util.List<ProfileResponse> searchUsers(String query) {
+        return userRepository.findByUsernameContainingIgnoreCase(query)
+                .stream()
+                .map(u -> getUserProfile(u.getId()))
+                .collect(java.util.stream.Collectors.toList());
+    }
 }
