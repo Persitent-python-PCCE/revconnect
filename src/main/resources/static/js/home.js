@@ -1724,26 +1724,35 @@ document.addEventListener("DOMContentLoaded", async () => {
         position: fixed;
         inset: 0;
         z-index: 99999;
-        background: rgba(0,0,0,0.75);
-        backdrop-filter: blur(6px);
+        background: rgba(17, 24, 39, 0.4);
+        backdrop-filter: blur(4px);
         display: none;
-        align-items: center;
-        justify-content: center;
+        align-items: flex-end;
+        justify-content: flex-end;
+        transition: all 0.3s ease;
     `;
     
     notifModal.innerHTML = `
-        <div style="background: #1a1a2e; border: 1px solid rgba(255,255,255,0.12); border-radius: 16px; padding: 24px; max-width: 480px; width: 90%; max-height: 80vh; display: flex; flex-direction: column;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h2 style="color: #fff; font-size: 1.25rem; margin: 0;">Notifications</h2>
-                <div>
-                    <button id="markAllReadBtn" style="background: none; border: none; color: #ff6b35; cursor: pointer; font-size: 0.9rem; margin-right: 12px;">Mark all read</button>
-                    <button id="closeNotifModalBtn" style="background: none; border: none; color: rgba(255,255,255,0.6); cursor: pointer;"><i data-lucide="x"></i></button>
+        <div style="background: #FFFFFF; border-left: 1px solid #E5E7EB; width: 420px; max-width: 100%; height: 100vh; box-shadow: -10px 0 40px rgba(0,0,0,0.1); display: flex; flex-direction: column; animation: slideInRight 0.3s cubic-bezier(0.4, 0, 0.2, 1);">
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 24px; border-bottom: 1px solid #E5E7EB; background: #FFFFFF;">
+                <h2 style="color: #111827; font-size: 1.25rem; font-weight: 800; margin: 0;">Notifications</h2>
+                <div style="display: flex; gap: 12px;">
+                    <button id="markAllReadBtn" style="background: none; border: none; color: #FF5A5F; cursor: pointer; font-size: 0.85rem; font-weight: 700; transition: all 0.2s;">Mark all read</button>
+                    <button id="closeNotifModalBtn" style="background: #F3F4F6; border: none; color: #6B7280; width: 32px; height: 32px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s;"><i data-lucide="x" style="width: 18px; height: 18px;"></i></button>
                 </div>
             </div>
-            <div id="notifListContainer" style="overflow-y: auto; flex: 1;">
-                <div style="color: rgba(255,255,255,0.5); text-align: center; padding: 20px;">Loading...</div>
+            <div id="notifListContainer" style="overflow-y: auto; flex: 1; padding: 20px 24px; background: #F9FAFB;">
+                <div style="color: #6B7280; text-align: center; padding: 20px;">Loading...</div>
             </div>
         </div>
+        <style>
+            @keyframes slideInRight {
+                from { transform: translateX(100%); }
+                to { transform: translateX(0); }
+            }
+            #closeNotifModalBtn:hover { background: #E5E7EB; color: #111827; }
+            #markAllReadBtn:hover { opacity: 0.8; }
+        </style>
     `;
     document.body.appendChild(notifModal);
 
@@ -1777,7 +1786,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     async function openNotifications() {
         notifModal.style.display = "flex";
         if (window.lucide) lucide.createIcons();
-        notifListContainer.innerHTML = `<div style="color: rgba(255,255,255,0.5); text-align: center; padding: 20px;">Loading...</div>`;
+        notifListContainer.innerHTML = `<div style="color: #6B7280; text-align: center; padding: 40px 20px; font-weight: 500;">
+            <div style="width: 24px; height: 24px; border: 2px solid #E5E7EB; border-top-color: #FF5A5F; border-radius: 50%; animation: igSpin 0.7s linear infinite; margin: 0 auto 12px;"></div>
+            Loading notifications...
+        </div>`;
         
         try {
             const response = await fetch("/api/notifications", {
@@ -1789,7 +1801,11 @@ document.addEventListener("DOMContentLoaded", async () => {
             notifListContainer.innerHTML = "";
             
             if (!pageData.content || pageData.content.length === 0) {
-                notifListContainer.innerHTML = `<div style="color: rgba(255,255,255,0.5); text-align: center; padding: 20px;">No notifications yet.</div>`;
+                notifListContainer.innerHTML = `<div style="color: #6B7280; text-align: center; padding: 40px 20px; font-weight: 500;">
+                    <i data-lucide="bell-off" style="width: 32px; height: 32px; color: #D1D5DB; margin-bottom: 12px;"></i><br>
+                    No notifications yet.
+                </div>`;
+                if (window.lucide) lucide.createIcons();
                 return;
             }
             
@@ -1797,38 +1813,46 @@ document.addEventListener("DOMContentLoaded", async () => {
                 const item = document.createElement("div");
                 item.style.cssText = `
                     display: flex;
-                    padding: 12px 0;
-                    border-bottom: 1px solid rgba(255,255,255,0.05);
-                    align-items: center;
-                    opacity: ${n.read ? '0.7' : '1'};
+                    padding: 16px;
+                    border-bottom: 1px solid #E5E7EB;
+                    align-items: flex-start;
+                    background: ${n.read ? 'transparent' : '#FFFFFF'};
+                    border-radius: 12px;
+                    margin-bottom: 8px;
+                    transition: all 0.2s ease;
+                    cursor: pointer;
+                    box-shadow: ${n.read ? 'none' : '0 1px 3px rgba(0,0,0,0.05)'};
                 `;
+                
+                item.onmouseover = () => { item.style.transform = "translateY(-2px)"; item.style.boxShadow = "0 4px 12px rgba(0,0,0,0.05)"; };
+                item.onmouseout = () => { item.style.transform = "none"; item.style.boxShadow = n.read ? "none" : "0 1px 3px rgba(0,0,0,0.05)"; };
                 
                 const avatarLetter = (n.actorUsername || "U").charAt(0).toUpperCase();
                 
                 let actionsHtml = "";
                 if (n.type === "CONNECTION_REQUEST") {
                     actionsHtml = `
-                        <div style="margin-top: 8px;">
-                            <button class="accept-btn" data-id="${n.referenceId}" data-notif-id="${n.id}" style="background: #ff6b35; color: white; border: none; padding: 6px 16px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; margin-right: 8px; font-weight: 600;">Accept</button>
-                            <button class="reject-btn" data-id="${n.referenceId}" data-notif-id="${n.id}" style="background: transparent; color: rgba(255,255,255,0.8); border: 1px solid rgba(255,255,255,0.2); padding: 6px 16px; border-radius: 6px; cursor: pointer; font-size: 0.85rem;">Reject</button>
+                        <div style="margin-top: 10px; display: flex; gap: 8px;">
+                            <button class="accept-btn" data-id="${n.referenceId}" data-notif-id="${n.id}" style="background: #FF5A5F; color: white; border: none; padding: 8px 20px; border-radius: 8px; cursor: pointer; font-size: 0.85rem; font-weight: 600; transition: all 0.2s; box-shadow: 0 2px 4px rgba(255,90,95,0.2);">Accept</button>
+                            <button class="reject-btn" data-id="${n.referenceId}" data-notif-id="${n.id}" style="background: #F3F4F6; color: #374151; border: 1px solid #E5E7EB; padding: 8px 20px; border-radius: 8px; cursor: pointer; font-size: 0.85rem; font-weight: 600; transition: all 0.2s;">Reject</button>
                         </div>
                     `;
                 }
                 
                 item.innerHTML = `
-                    <div style="width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, #ff6b35, #f7c59f); color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; margin-right: 16px; flex-shrink: 0; cursor: pointer;" onclick="window.location.href='/profile.html?userId=${n.actorId}'">
+                    <div style="width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, #FF5A5F, #FF8E53); color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1.1rem; margin-right: 14px; flex-shrink: 0;" onclick="window.location.href='/profile.html?userId=${n.actorId}'">
                         ${avatarLetter}
                     </div>
                     <div style="flex: 1;">
-                        <div style="color: #fff; font-size: 0.95rem;">
+                        <div style="color: #111827; font-size: 0.95rem; line-height: 1.4;">
                             <strong>${n.actorName || n.actorUsername}</strong> ${n.message.replace(n.actorName || n.actorUsername, "")}
                         </div>
-                        <div style="color: rgba(255,255,255,0.4); font-size: 0.8rem; margin-top: 4px;">
+                        <div style="color: #6B7280; font-size: 0.8rem; margin-top: 6px; font-weight: 500;">
                             ${new Date(n.createdAt).toLocaleDateString()}
                         </div>
                         ${actionsHtml}
                     </div>
-                    ${!n.read ? '<div style="width: 8px; height: 8px; border-radius: 50%; background: #ff6b35; margin-left: 12px;"></div>' : ''}
+                    ${!n.read ? '<div class="unread-dot" style="width: 10px; height: 10px; border-radius: 50%; background: #FF5A5F; margin-left: 12px; margin-top: 6px; box-shadow: 0 0 0 4px rgba(255,90,95,0.1);"></div>' : ''}
                 `;
                 
                 if (n.type === "CONNECTION_REQUEST") {
@@ -1879,9 +1903,10 @@ document.addEventListener("DOMContentLoaded", async () => {
                 item.addEventListener("click", async () => {
                     if (!n.read) {
                         n.read = true;
-                        item.style.opacity = '0.7';
-                        const dot = item.querySelector("div:last-child");
-                        if (dot && dot.style.width === "8px") dot.remove();
+                        item.style.background = 'transparent';
+                        item.style.boxShadow = 'none';
+                        const dot = item.querySelector(".unread-dot");
+                        if (dot) dot.remove();
                         loadUnreadNotificationCount();
                         fetch(`/api/notifications/${n.id}/read`, {
                             method: "PUT",
@@ -1895,7 +1920,11 @@ document.addEventListener("DOMContentLoaded", async () => {
             
         } catch(e) {
             console.error(e);
-            notifListContainer.innerHTML = `<div style="color: #ff6b35; text-align: center; padding: 20px;">Failed to load notifications</div>`;
+            notifListContainer.innerHTML = `<div style="color: #EF4444; text-align: center; padding: 40px 20px; font-weight: 500; background: #FEF2F2; border-radius: 12px; border: 1px solid #FCA5A5;">
+                <i data-lucide="alert-circle" style="width: 32px; height: 32px; margin-bottom: 12px;"></i><br>
+                Failed to load notifications
+            </div>`;
+            if (window.lucide) lucide.createIcons();
         }
     }
 
