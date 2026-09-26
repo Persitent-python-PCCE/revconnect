@@ -11,6 +11,7 @@ import com.revconnect.revconnect.connection.entity.Follow;
 import com.revconnect.revconnect.connection.repository.ConnectionRepository;
 import com.revconnect.revconnect.connection.repository.ConnectionRequestRepository;
 import com.revconnect.revconnect.connection.repository.FollowRepository;
+import com.revconnect.revconnect.notification.service.NotificationService;
 import com.revconnect.revconnect.user.entity.User;
 import com.revconnect.revconnect.user.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -44,6 +45,9 @@ public class ConnectionServiceTest {
     @Mock
     private UserRepository userRepository;
 
+    @Mock
+    private NotificationService notificationService;
+
     @InjectMocks
     private ConnectionService connectionService;
 
@@ -64,7 +68,7 @@ public class ConnectionServiceTest {
     // 1. Cannot send connection request to self
     @Test
     void sendRequest_toSelf_throwsBadRequest() {
-        ResponseStatusException ex = assertThrows(ResponseStatusException.class, 
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
                 () -> connectionService.sendRequest(1L, 1L));
         assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
         assertTrue(ex.getReason().contains("yourself"));
@@ -75,7 +79,7 @@ public class ConnectionServiceTest {
     void sendRequest_nonExistentUser_throwsNotFound() {
         when(userRepository.findById(99L)).thenReturn(Optional.empty());
 
-        ResponseStatusException ex = assertThrows(ResponseStatusException.class, 
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
                 () -> connectionService.sendRequest(1L, 99L));
         assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
     }
@@ -88,7 +92,7 @@ public class ConnectionServiceTest {
         when(connectionRequestRepository.findByRequesterIdAndReceiverIdAndStatus(1L, 2L, ConnectionRequestStatus.PENDING))
                 .thenReturn(Optional.of(new ConnectionRequest(1L, 2L, ConnectionRequestStatus.PENDING)));
 
-        ResponseStatusException ex = assertThrows(ResponseStatusException.class, 
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
                 () -> connectionService.sendRequest(1L, 2L));
         assertEquals(HttpStatus.CONFLICT, ex.getStatusCode());
         assertTrue(ex.getReason().contains("already sent"));
@@ -100,7 +104,7 @@ public class ConnectionServiceTest {
         when(userRepository.findById(2L)).thenReturn(Optional.of(userB));
         when(connectionRepository.existsByUserOneIdAndUserTwoId(1L, 2L)).thenReturn(true);
 
-        ResponseStatusException ex = assertThrows(ResponseStatusException.class, 
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
                 () -> connectionService.sendRequest(1L, 2L));
         assertEquals(HttpStatus.CONFLICT, ex.getStatusCode());
         assertTrue(ex.getReason().contains("Already connected"));
@@ -124,6 +128,14 @@ public class ConnectionServiceTest {
         assertNotNull(response);
         assertEquals(10L, response.getRequestId());
         assertEquals(ConnectionRequestStatus.PENDING, response.getStatus());
+
+        verify(notificationService, times(1)).createNotification(
+                2L,
+                userA,
+                "sent you a connection request.",
+                "CONNECTION_REQUEST",
+                10L
+        );
     }
 
     // 6. Only receiver can accept
@@ -133,7 +145,7 @@ public class ConnectionServiceTest {
         req.setId(10L);
         when(connectionRequestRepository.findById(10L)).thenReturn(Optional.of(req));
 
-        ResponseStatusException ex = assertThrows(ResponseStatusException.class, 
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
                 () -> connectionService.acceptRequest(1L, 10L)); // requester tries to accept
         assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
     }
@@ -145,7 +157,7 @@ public class ConnectionServiceTest {
         req.setId(10L);
         when(connectionRequestRepository.findById(10L)).thenReturn(Optional.of(req));
 
-        ResponseStatusException ex = assertThrows(ResponseStatusException.class, 
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
                 () -> connectionService.rejectRequest(1L, 10L)); // requester tries to reject
         assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
     }
@@ -157,7 +169,7 @@ public class ConnectionServiceTest {
         req.setId(10L);
         when(connectionRequestRepository.findById(10L)).thenReturn(Optional.of(req));
 
-        ResponseStatusException ex = assertThrows(ResponseStatusException.class, 
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
                 () -> connectionService.cancelRequest(2L, 10L)); // receiver tries to cancel
         assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
     }
@@ -171,7 +183,7 @@ public class ConnectionServiceTest {
         when(connectionRepository.existsByUserOneIdAndUserTwoId(1L, 2L)).thenReturn(false);
         when(userRepository.findById(1L)).thenReturn(Optional.of(userA));
         when(userRepository.findById(2L)).thenReturn(Optional.of(userB));
-        
+
         when(connectionRequestRepository.findByRequesterIdAndReceiverIdAndStatus(2L, 1L, ConnectionRequestStatus.PENDING))
                 .thenReturn(Optional.empty());
 
@@ -181,6 +193,15 @@ public class ConnectionServiceTest {
         verify(connectionRequestRepository, times(1)).save(req);
         verify(connectionRepository, times(1)).save(any(Connection.class)); // active connection created
         assertEquals(ConnectionRequestStatus.ACCEPTED, res.getStatus());
+
+        verify(notificationService, times(1)).deleteConnectionRequestNotification(10L);
+        verify(notificationService, times(1)).createNotification(
+                1L,
+                userB,
+                "accepted your connection request.",
+                "CONNECTION_ACCEPTED",
+                10L
+        );
     }
 
     // 11. Invalid request state transition returns conflict
@@ -190,7 +211,7 @@ public class ConnectionServiceTest {
         req.setId(10L);
         when(connectionRequestRepository.findById(10L)).thenReturn(Optional.of(req));
 
-        ResponseStatusException ex = assertThrows(ResponseStatusException.class, 
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
                 () -> connectionService.acceptRequest(2L, 10L));
         assertEquals(HttpStatus.CONFLICT, ex.getStatusCode());
     }
@@ -209,7 +230,7 @@ public class ConnectionServiceTest {
     // 13. Follow cannot target self
     @Test
     void followUser_self_throwsBadRequest() {
-        ResponseStatusException ex = assertThrows(ResponseStatusException.class, 
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
                 () -> connectionService.followUser(1L, 1L));
         assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
     }
@@ -218,6 +239,7 @@ public class ConnectionServiceTest {
     @Test
     void followUser_success() {
         when(userRepository.findById(2L)).thenReturn(Optional.of(userB));
+        when(userRepository.findById(1L)).thenReturn(Optional.of(userA));
         when(followRepository.findByFollowerIdAndFollowingId(1L, 2L)).thenReturn(Optional.empty());
 
         Follow follow = new Follow(1L, 2L);
@@ -229,6 +251,14 @@ public class ConnectionServiceTest {
 
         assertNotNull(res);
         assertEquals(5L, res.getFollowId());
+
+        verify(notificationService, times(1)).createNotification(
+                2L,
+                userA,
+                "followed you.",
+                "FOLLOW",
+                5L
+        );
     }
 
     // 15. Duplicate follow does not create duplicate row
@@ -243,6 +273,7 @@ public class ConnectionServiceTest {
 
         assertEquals(5L, res.getFollowId());
         verify(followRepository, never()).save(any(Follow.class));
+        verifyNoInteractions(notificationService);
     }
 
     // 16. Unfollow works
@@ -263,7 +294,7 @@ public class ConnectionServiceTest {
         when(connectionRepository.existsByUserOneIdAndUserTwoId(1L, 2L)).thenReturn(false);
         when(connectionRequestRepository.findByRequesterIdAndReceiverIdAndStatus(1L, 2L, ConnectionRequestStatus.PENDING))
                 .thenReturn(Optional.of(new ConnectionRequest()));
-        
+
         RelationshipStatusResponse res = connectionService.getRelationshipStatus(1L, 2L);
         assertEquals("PENDING_SENT", res.getConnectionStatus());
     }
@@ -302,7 +333,7 @@ public class ConnectionServiceTest {
         when(connectionRequestRepository.countByRequesterIdAndStatus(1L, ConnectionRequestStatus.PENDING)).thenReturn(3L);
 
         ConnectionStatsResponse res = connectionService.getStats(1L);
-        
+
         assertEquals(10L, res.getConnectionCount());
         assertEquals(5L, res.getFollowerCount());
         assertEquals(8L, res.getFollowingCount());

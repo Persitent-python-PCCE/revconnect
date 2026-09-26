@@ -1,5 +1,8 @@
 package com.revconnect.revconnect.post.service;
 
+import com.revconnect.revconnect.connection.entity.Follow;
+import com.revconnect.revconnect.connection.repository.FollowRepository;
+import com.revconnect.revconnect.notification.service.NotificationService;
 import com.revconnect.revconnect.post.dto.PostRequest;
 import com.revconnect.revconnect.post.dto.PostResponse;
 import com.revconnect.revconnect.post.entity.Post;
@@ -35,13 +38,19 @@ public class PostService {
 
     private final PostRepository postRepository;
     private final UserRepository userRepository;
+    private final FollowRepository followRepository;
+    private final NotificationService notificationService;
 
     public PostService(
             PostRepository postRepository,
-            UserRepository userRepository) {
+            UserRepository userRepository,
+            FollowRepository followRepository,
+            NotificationService notificationService) {
 
         this.postRepository = postRepository;
         this.userRepository = userRepository;
+        this.followRepository = followRepository;
+        this.notificationService = notificationService;
     }
 
     public PostResponse createPost(
@@ -92,6 +101,8 @@ public class PostService {
 
         Post savedPost = postRepository.save(post);
 
+        createPostNotifications(savedPost);
+
         return createPostResponse(savedPost);
     }
 
@@ -103,6 +114,31 @@ public class PostService {
                 HttpStatus.BAD_REQUEST,
                 "Use multipart/form-data with a photo field to create a post."
         );
+    }
+
+    private void createPostNotifications(Post post) {
+
+        User actor = userRepository
+                .findById(post.getUserId())
+                .orElse(null);
+
+        if (actor == null) {
+            return;
+        }
+
+        List<Follow> followers =
+                followRepository.findByFollowingId(post.getUserId());
+
+        for (Follow follow : followers) {
+
+            notificationService.createNotification(
+                    follow.getFollowerId(),
+                    actor,
+                    "created a new post.",
+                    "POST_CREATED",
+                    post.getId()
+            );
+        }
     }
 
     private String saveImage(MultipartFile file) {
