@@ -79,17 +79,17 @@
                 <div class="profile-stats">
 
                     <div>
-                        <strong>12</strong>
+                        <strong id="sidebarPostsCount">12</strong>
                         <span>Posts</span>
                     </div>
 
                     <div>
-                        <strong>1.2K</strong>
+                        <strong id="sidebarFollowersCount">1.2K</strong>
                         <span>Followers</span>
                     </div>
 
                     <div>
-                        <strong>386</strong>
+                        <strong id="sidebarFollowingCount">386</strong>
                         <span>Following</span>
                     </div>
 
@@ -129,11 +129,12 @@
                 </a>
 
 
-                <a href="#" class="nav-link">
+                <a href="#" class="nav-link" id="navNotificationsBtn">
 
                     <i data-lucide="heart"></i>
 
                     <span>Notifications</span>
+                    <span id="navNotificationsBadge" style="display:none; background:#ff6b35; color:white; border-radius:10px; padding:2px 6px; font-size:0.7rem; margin-left:auto;"></span>
 
                 </a>
 
@@ -225,9 +226,10 @@
                 </button>
 
 
-                <button class="icon-btn">
+                <button class="icon-btn" id="headerNotificationsBtn" style="position:relative;">
 
                     <i data-lucide="heart"></i>
+                    <span id="headerNotificationsBadge" style="display:none; position:absolute; top:2px; right:2px; background:#ff6b35; color:white; border-radius:10px; padding:2px 5px; font-size:0.6rem;"></span>
 
                 </button>
 

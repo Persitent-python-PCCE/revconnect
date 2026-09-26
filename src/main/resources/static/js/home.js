@@ -1654,4 +1654,252 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
         });
     }
+
+    // =====================================================
+    // 7. DYNAMIC SIDEBAR STATS
+    // =====================================================
+    async function loadSidebarStats() {
+        try {
+            const response = await fetch("/api/connections/stats", {
+                headers: { "Authorization": `Bearer ${token}` }
+            });
+            if (response.ok) {
+                const stats = await response.json();
+                const followersEl = document.getElementById("sidebarFollowersCount");
+                const followingEl = document.getElementById("sidebarFollowingCount");
+                if (followersEl) followersEl.textContent = stats.followerCount || 0;
+                if (followingEl) followingEl.textContent = stats.followingCount || 0;
+            }
+        } catch(e) {
+            console.error("Failed to load sidebar stats", e);
+        }
+    }
+    
+    // Call it immediately
+    loadSidebarStats();
+
+    // =====================================================
+    // 8. NOTIFICATIONS
+    // =====================================================
+    const navNotifBtn = document.getElementById("navNotificationsBtn");
+    const headerNotifBtn = document.getElementById("headerNotificationsBtn");
+    const navNotifBadge = document.getElementById("navNotificationsBadge");
+    const headerNotifBadge = document.getElementById("headerNotificationsBadge");
+
+    async function loadUnreadNotificationCount() {
+        try {
+            const response = await fetch("/api/notifications/unread-count", {
+                headers: { "Authorization": `Bearer ${token}` }
+            });
+            if (response.ok) {
+                const data = await response.json();
+                const count = data.count || 0;
+                
+                if (count > 0) {
+                    if (navNotifBadge) {
+                        navNotifBadge.style.display = "block";
+                        navNotifBadge.textContent = count > 99 ? "99+" : count;
+                    }
+                    if (headerNotifBadge) {
+                        headerNotifBadge.style.display = "block";
+                        headerNotifBadge.textContent = count > 99 ? "99+" : count;
+                    }
+                } else {
+                    if (navNotifBadge) navNotifBadge.style.display = "none";
+                    if (headerNotifBadge) headerNotifBadge.style.display = "none";
+                }
+            }
+        } catch(e) {
+            console.error("Failed to load notification count", e);
+        }
+    }
+
+    loadUnreadNotificationCount();
+    // Poll every 30 seconds for unread counts
+    setInterval(loadUnreadNotificationCount, 30000);
+
+    // Create notifications modal
+    const notifModal = document.createElement("div");
+    notifModal.style.cssText = `
+        position: fixed;
+        inset: 0;
+        z-index: 99999;
+        background: rgba(0,0,0,0.75);
+        backdrop-filter: blur(6px);
+        display: none;
+        align-items: center;
+        justify-content: center;
+    `;
+    
+    notifModal.innerHTML = `
+        <div style="background: #1a1a2e; border: 1px solid rgba(255,255,255,0.12); border-radius: 16px; padding: 24px; max-width: 480px; width: 90%; max-height: 80vh; display: flex; flex-direction: column;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 style="color: #fff; font-size: 1.25rem; margin: 0;">Notifications</h2>
+                <div>
+                    <button id="markAllReadBtn" style="background: none; border: none; color: #ff6b35; cursor: pointer; font-size: 0.9rem; margin-right: 12px;">Mark all read</button>
+                    <button id="closeNotifModalBtn" style="background: none; border: none; color: rgba(255,255,255,0.6); cursor: pointer;"><i data-lucide="x"></i></button>
+                </div>
+            </div>
+            <div id="notifListContainer" style="overflow-y: auto; flex: 1;">
+                <div style="color: rgba(255,255,255,0.5); text-align: center; padding: 20px;">Loading...</div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(notifModal);
+
+    const closeNotifModalBtn = notifModal.querySelector("#closeNotifModalBtn");
+    const notifListContainer = notifModal.querySelector("#notifListContainer");
+    const markAllReadBtn = notifModal.querySelector("#markAllReadBtn");
+
+    closeNotifModalBtn.addEventListener("click", () => {
+        notifModal.style.display = "none";
+    });
+
+    notifModal.addEventListener("click", (e) => {
+        if (e.target === notifModal) {
+            notifModal.style.display = "none";
+        }
+    });
+    
+    markAllReadBtn.addEventListener("click", async () => {
+        try {
+            await fetch("/api/notifications/read-all", {
+                method: "PUT",
+                headers: { "Authorization": `Bearer ${token}` }
+            });
+            loadUnreadNotificationCount();
+            openNotifications();
+        } catch(e) {
+            console.error(e);
+        }
+    });
+
+    async function openNotifications() {
+        notifModal.style.display = "flex";
+        if (window.lucide) lucide.createIcons();
+        notifListContainer.innerHTML = `<div style="color: rgba(255,255,255,0.5); text-align: center; padding: 20px;">Loading...</div>`;
+        
+        try {
+            const response = await fetch("/api/notifications", {
+                headers: { "Authorization": `Bearer ${token}` }
+            });
+            if (!response.ok) throw new Error("Failed to load");
+            
+            const pageData = await response.json();
+            notifListContainer.innerHTML = "";
+            
+            if (!pageData.content || pageData.content.length === 0) {
+                notifListContainer.innerHTML = `<div style="color: rgba(255,255,255,0.5); text-align: center; padding: 20px;">No notifications yet.</div>`;
+                return;
+            }
+            
+            pageData.content.forEach(n => {
+                const item = document.createElement("div");
+                item.style.cssText = `
+                    display: flex;
+                    padding: 12px 0;
+                    border-bottom: 1px solid rgba(255,255,255,0.05);
+                    align-items: center;
+                    opacity: ${n.read ? '0.7' : '1'};
+                `;
+                
+                const avatarLetter = (n.actorUsername || "U").charAt(0).toUpperCase();
+                
+                let actionsHtml = "";
+                if (n.type === "CONNECTION_REQUEST") {
+                    actionsHtml = `
+                        <div style="margin-top: 8px;">
+                            <button class="accept-btn" data-id="${n.referenceId}" data-notif-id="${n.id}" style="background: #ff6b35; color: white; border: none; padding: 6px 16px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; margin-right: 8px; font-weight: 600;">Accept</button>
+                            <button class="reject-btn" data-id="${n.referenceId}" data-notif-id="${n.id}" style="background: transparent; color: rgba(255,255,255,0.8); border: 1px solid rgba(255,255,255,0.2); padding: 6px 16px; border-radius: 6px; cursor: pointer; font-size: 0.85rem;">Reject</button>
+                        </div>
+                    `;
+                }
+                
+                item.innerHTML = `
+                    <div style="width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, #ff6b35, #f7c59f); color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; margin-right: 16px; flex-shrink: 0; cursor: pointer;" onclick="window.location.href='/profile.html?userId=${n.actorId}'">
+                        ${avatarLetter}
+                    </div>
+                    <div style="flex: 1;">
+                        <div style="color: #fff; font-size: 0.95rem;">
+                            <strong>${n.actorName || n.actorUsername}</strong> ${n.message.replace(n.actorName || n.actorUsername, "")}
+                        </div>
+                        <div style="color: rgba(255,255,255,0.4); font-size: 0.8rem; margin-top: 4px;">
+                            ${new Date(n.createdAt).toLocaleDateString()}
+                        </div>
+                        ${actionsHtml}
+                    </div>
+                    ${!n.read ? '<div style="width: 8px; height: 8px; border-radius: 50%; background: #ff6b35; margin-left: 12px;"></div>' : ''}
+                `;
+                
+                if (n.type === "CONNECTION_REQUEST") {
+                    const acceptBtn = item.querySelector(".accept-btn");
+                    const rejectBtn = item.querySelector(".reject-btn");
+                    if (acceptBtn) {
+                        acceptBtn.addEventListener("click", async (e) => {
+                            e.stopPropagation();
+                            acceptBtn.disabled = true;
+                            rejectBtn.disabled = true;
+                            try {
+                                await fetch(`/api/connections/requests/${n.referenceId}/accept`, {
+                                    method: "PUT",
+                                    headers: { "Authorization": `Bearer ${token}` }
+                                });
+                                item.style.opacity = '0.5';
+                                acceptBtn.textContent = "Accepted";
+                                rejectBtn.style.display = "none";
+                                loadSidebarStats(); // Refresh stats immediately
+                            } catch(err) {
+                                alert("Failed to accept");
+                                acceptBtn.disabled = false;
+                                rejectBtn.disabled = false;
+                            }
+                        });
+                    }
+                    if (rejectBtn) {
+                        rejectBtn.addEventListener("click", async (e) => {
+                            e.stopPropagation();
+                            acceptBtn.disabled = true;
+                            rejectBtn.disabled = true;
+                            try {
+                                await fetch(`/api/connections/requests/${n.referenceId}/reject`, {
+                                    method: "PUT",
+                                    headers: { "Authorization": `Bearer ${token}` }
+                                });
+                                item.style.display = "none";
+                            } catch(err) {
+                                alert("Failed to reject");
+                                acceptBtn.disabled = false;
+                                rejectBtn.disabled = false;
+                            }
+                        });
+                    }
+                }
+                
+                // Mark as read when clicked
+                item.addEventListener("click", async () => {
+                    if (!n.read) {
+                        n.read = true;
+                        item.style.opacity = '0.7';
+                        const dot = item.querySelector("div:last-child");
+                        if (dot && dot.style.width === "8px") dot.remove();
+                        loadUnreadNotificationCount();
+                        fetch(`/api/notifications/${n.id}/read`, {
+                            method: "PUT",
+                            headers: { "Authorization": `Bearer ${token}` }
+                        });
+                    }
+                });
+                
+                notifListContainer.appendChild(item);
+            });
+            
+        } catch(e) {
+            console.error(e);
+            notifListContainer.innerHTML = `<div style="color: #ff6b35; text-align: center; padding: 20px;">Failed to load notifications</div>`;
+        }
+    }
+
+    if (navNotifBtn) navNotifBtn.addEventListener("click", (e) => { e.preventDefault(); openNotifications(); });
+    if (headerNotifBtn) headerNotifBtn.addEventListener("click", (e) => { e.preventDefault(); openNotifications(); });
+
 });

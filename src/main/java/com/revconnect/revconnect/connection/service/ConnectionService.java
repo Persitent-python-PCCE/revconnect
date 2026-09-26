@@ -12,6 +12,7 @@ import com.revconnect.revconnect.connection.entity.Follow;
 import com.revconnect.revconnect.connection.repository.ConnectionRepository;
 import com.revconnect.revconnect.connection.repository.ConnectionRequestRepository;
 import com.revconnect.revconnect.connection.repository.FollowRepository;
+import com.revconnect.revconnect.notification.service.NotificationService;
 import com.revconnect.revconnect.user.entity.User;
 import com.revconnect.revconnect.user.repository.UserRepository;
 import org.springframework.data.domain.Page;
@@ -33,15 +34,18 @@ public class ConnectionService {
     private final ConnectionRepository connectionRepository;
     private final FollowRepository followRepository;
     private final UserRepository userRepository;
+    private final NotificationService notificationService;
 
     public ConnectionService(ConnectionRequestRepository connectionRequestRepository,
                              ConnectionRepository connectionRepository,
                              FollowRepository followRepository,
-                             UserRepository userRepository) {
+                             UserRepository userRepository,
+                             NotificationService notificationService) {
         this.connectionRequestRepository = connectionRequestRepository;
         this.connectionRepository = connectionRepository;
         this.followRepository = followRepository;
         this.userRepository = userRepository;
+        this.notificationService = notificationService;
     }
 
     @Transactional
@@ -78,6 +82,15 @@ public class ConnectionService {
         request = connectionRequestRepository.save(request);
 
         User currentUser = requireUser(currentUserId);
+        
+        notificationService.createNotification(
+                targetUserId,
+                currentUser,
+                "sent you a connection request.",
+                "CONNECTION_REQUEST",
+                request.getId()
+        );
+
         return mapToConnectionRequestResponse(request, currentUser, targetUser);
     }
 
@@ -123,6 +136,9 @@ public class ConnectionService {
 
         User requester = requireUser(request.getRequesterId());
         User receiver = requireUser(request.getReceiverId());
+        
+        notificationService.deleteConnectionRequestNotification(request.getId());
+        
         return mapToConnectionRequestResponse(request, requester, receiver);
     }
 
@@ -141,6 +157,9 @@ public class ConnectionService {
 
         User requester = requireUser(request.getRequesterId());
         User receiver = requireUser(request.getReceiverId());
+        
+        notificationService.deleteConnectionRequestNotification(request.getId());
+        
         return mapToConnectionRequestResponse(request, requester, receiver);
     }
 
@@ -156,6 +175,8 @@ public class ConnectionService {
 
         request.setStatus(ConnectionRequestStatus.CANCELLED);
         connectionRequestRepository.save(request);
+        
+        notificationService.deleteConnectionRequestNotification(request.getId());
     }
 
     @Transactional(readOnly = true)
@@ -196,6 +217,15 @@ public class ConnectionService {
 
         Follow follow = new Follow(currentUserId, targetUserId);
         follow = followRepository.save(follow);
+        
+        User currentUser = requireUser(currentUserId);
+        notificationService.createNotification(
+                targetUserId,
+                currentUser,
+                "followed you.",
+                "FOLLOW",
+                follow.getId()
+        );
 
         return new FollowResponse(follow.getId(), targetUser.getId(), targetUser.getUsername(), follow.getCreatedAt());
     }
