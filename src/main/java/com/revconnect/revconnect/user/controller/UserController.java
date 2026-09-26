@@ -49,4 +49,14 @@ public class UserController {
                 "Creator-only API accessed successfully!"
         );
     }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<ProfileResponse> getUserProfile(@PathVariable Long id) {
+        return ResponseEntity.ok(userService.getUserProfile(id));
+    }
+
+    @GetMapping("/search")
+    public ResponseEntity<java.util.List<ProfileResponse>> searchUsers(@RequestParam String q) {
+        return ResponseEntity.ok(userService.searchUsers(q));
+    }
 }
