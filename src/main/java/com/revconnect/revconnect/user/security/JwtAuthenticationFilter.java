@@ -61,10 +61,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
             String email = claims.getSubject();
 
-            Long userId = claims.get("userId", Long.class);
+            Long userId = extractUserId(claims);
 
             String accountType =
                     claims.get("accountType", String.class);
+
+            if (email == null || accountType == null || accountType.isBlank()) {
+                throw new IllegalArgumentException("JWT is missing required claims");
+            }
 
             UsernamePasswordAuthenticationToken authentication =
                     new UsernamePasswordAuthenticationToken(
@@ -87,5 +91,19 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    private Long extractUserId(Claims claims) {
+        Object userIdClaim = claims.get("userId");
+
+        if (userIdClaim instanceof Number number) {
+            return number.longValue();
+        }
+
+        if (userIdClaim instanceof String userId) {
+            return Long.valueOf(userId);
+        }
+
+        throw new IllegalArgumentException("JWT userId claim is missing or invalid");
     }
 }
