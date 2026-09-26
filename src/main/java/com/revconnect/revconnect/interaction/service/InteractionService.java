@@ -11,6 +11,8 @@ import com.revconnect.revconnect.interaction.repository.CommentRepository;
 import com.revconnect.revconnect.interaction.repository.PostLikeRepository;
 import com.revconnect.revconnect.interaction.repository.RepostRepository;
 import com.revconnect.revconnect.interaction.repository.ShareRepository;
+import com.revconnect.revconnect.notification.service.NotificationService;
+import com.revconnect.revconnect.post.entity.Post;
 import com.revconnect.revconnect.post.repository.PostRepository;
 import com.revconnect.revconnect.user.entity.User;
 import com.revconnect.revconnect.user.repository.UserRepository;
@@ -32,31 +34,35 @@ public class InteractionService {
     private final CommentRepository commentRepository;
     private final ShareRepository shareRepository;
     private final RepostRepository repostRepository;
+    private final NotificationService notificationService;
 
     public InteractionService(PostRepository postRepository,
                               UserRepository userRepository,
                               PostLikeRepository postLikeRepository,
                               CommentRepository commentRepository,
                               ShareRepository shareRepository,
-                              RepostRepository repostRepository) {
+                              RepostRepository repostRepository,
+                              NotificationService notificationService) {
         this.postRepository = postRepository;
         this.userRepository = userRepository;
         this.postLikeRepository = postLikeRepository;
         this.commentRepository = commentRepository;
         this.shareRepository = shareRepository;
         this.repostRepository = repostRepository;
+        this.notificationService = notificationService;
     }
 
     @Transactional
     public void likePost(Long postId, Long userId) {
-        requirePost(postId);
-        requireUser(userId);
+        Post post = requirePost(postId);
+        User user = requireUser(userId);
 
         if (!postLikeRepository.existsByPostIdAndUserId(postId, userId)) {
             PostLike like = new PostLike();
             like.setPostId(postId);
             like.setUserId(userId);
             postLikeRepository.save(like);
+            notifyPostAuthor(post, user, "liked your post.", "LIKE");
         }
     }
 
@@ -68,7 +74,7 @@ public class InteractionService {
 
     @Transactional
     public CommentResponse addComment(Long postId, Long userId, CommentRequest request) {
-        requirePost(postId);
+        Post post = requirePost(postId);
         User user = requireUser(userId);
         String content = normalizeComment(request.getContent());
 
@@ -77,7 +83,10 @@ public class InteractionService {
         comment.setUserId(userId);
         comment.setContent(content);
 
-        return toCommentResponse(commentRepository.save(comment), user.getUsername());
+        Comment savedComment = commentRepository.save(comment);
+        notifyPostAuthor(post, user, "commented on your post.", "COMMENT");
+
+        return toCommentResponse(savedComment, user.getUsername());
     }
 
     @Transactional(readOnly = true)
@@ -115,25 +124,27 @@ public class InteractionService {
 
     @Transactional
     public void sharePost(Long postId, Long userId) {
-        requirePost(postId);
-        requireUser(userId);
+        Post post = requirePost(postId);
+        User user = requireUser(userId);
 
         Share share = new Share();
         share.setPostId(postId);
         share.setUserId(userId);
         shareRepository.save(share);
+        notifyPostAuthor(post, user, "shared your post.", "SHARE");
     }
 
     @Transactional
     public void repostPost(Long postId, Long userId) {
-        requirePost(postId);
-        requireUser(userId);
+        Post post = requirePost(postId);
+        User user = requireUser(userId);
 
         if (!repostRepository.existsByPostIdAndUserId(postId, userId)) {
             Repost repost = new Repost();
             repost.setPostId(postId);
             repost.setUserId(userId);
             repostRepository.save(repost);
+            notifyPostAuthor(post, user, "reposted your post.", "REPOST");
         }
     }
 
@@ -182,9 +193,20 @@ public class InteractionService {
                         HttpStatus.NOT_FOUND, "Comment not found"));
     }
 
-    private void requirePost(Long postId) {
-        if (!postRepository.existsById(postId)) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Post not found");
+    private Post requirePost(Long postId) {
+        return postRepository.findById(postId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Post not found"));
+    }
+
+    private void notifyPostAuthor(Post post, User actor, String message, String type) {
+        if (!post.getUserId().equals(actor.getId())) {
+            notificationService.createNotification(
+                    post.getUserId(),
+                    actor,
+                    actor.getUsername() + " " + message,
+                    type,
+                    post.getId()
+            );
         }
     }
 
