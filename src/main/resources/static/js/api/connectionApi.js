@@ -63,6 +63,6 @@ const ConnectionApi = (function () {
         unfollowUser: (targetUserId) => apiRequest(`/api/connections/follow/${targetUserId}`, "DELETE"),
         getFollowers: (page = 0, size = 20) => apiRequest(`/api/connections/followers?page=${page}&size=${size}`),
         getFollowing: (page = 0, size = 20) => apiRequest(`/api/connections/following?page=${page}&size=${size}`),
-        getConnectionStats: () => apiRequest(`/api/connections/stats`)
+        getConnectionStats: (targetUserId = null) => apiRequest(targetUserId ? `/api/connections/stats/${targetUserId}` : `/api/connections/stats`)
     };
 })();

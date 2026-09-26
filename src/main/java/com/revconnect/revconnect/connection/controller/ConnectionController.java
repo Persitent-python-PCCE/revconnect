@@ -136,9 +136,12 @@ public class ConnectionController {
         return ResponseEntity.ok(response);
     }
 
-    @GetMapping("/stats")
-    public ResponseEntity<ConnectionStatsResponse> getStats(Authentication authentication) {
-        ConnectionStatsResponse response = connectionService.getStats(currentUserId(authentication));
+    @GetMapping({"/stats", "/stats/{targetUserId}"})
+    public ResponseEntity<ConnectionStatsResponse> getStats(
+            Authentication authentication,
+            @PathVariable(required = false) Long targetUserId) {
+        Long userIdToFetch = targetUserId != null ? targetUserId : currentUserId(authentication);
+        ConnectionStatsResponse response = connectionService.getStats(userIdToFetch);
         return ResponseEntity.ok(response);
     }
 }

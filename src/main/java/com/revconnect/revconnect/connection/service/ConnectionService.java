@@ -139,6 +139,14 @@ public class ConnectionService {
         
         notificationService.deleteConnectionRequestNotification(request.getId());
         
+        notificationService.createNotification(
+                requester.getId(),
+                receiver,
+                "accepted your connection request.",
+                "CONNECTION_ACCEPTED",
+                request.getId()
+        );
+        
         return mapToConnectionRequestResponse(request, requester, receiver);
     }
 

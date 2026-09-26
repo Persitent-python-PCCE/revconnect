@@ -111,9 +111,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     async function loadStats() {
-        if (!isMe) return; // Only load stats for current user
         try {
-            const stats = await ConnectionApi.getConnectionStats();
+            const stats = await ConnectionApi.getConnectionStats(targetUserId);
             document.getElementById("countFollowers").textContent = stats.followerCount;
             document.getElementById("countFollowing").textContent = stats.followingCount;
             document.getElementById("countConnections").textContent = stats.connectionCount;
