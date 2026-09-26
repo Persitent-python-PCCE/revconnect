@@ -1533,27 +1533,124 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     // --- Search Functionality ---
+    const searchBoxContainer = document.querySelector(".search-box");
     const searchInput = document.querySelector(".search-box input");
-    if (searchInput) {
-        searchInput.addEventListener("keypress", async (e) => {
-            if (e.key === "Enter" && searchInput.value.trim()) {
-                const query = searchInput.value.trim();
+    
+    if (searchBoxContainer && searchInput) {
+        searchBoxContainer.style.position = "relative";
+        
+        const dropdown = document.createElement("div");
+        dropdown.style.cssText = `
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: #1a1a2e;
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 8px;
+            margin-top: 8px;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.4);
+            z-index: 1000;
+            display: none;
+            max-height: 300px;
+            overflow-y: auto;
+        `;
+        searchBoxContainer.appendChild(dropdown);
+        
+        let debounceTimer;
+        let myUserId = null;
+        
+        // Fetch my user ID so we can filter ourselves out
+        fetch("/api/user/me", { headers: { "Authorization": `Bearer ${token}` } })
+            .then(res => {
+                if (res.ok) return res.json();
+            })
+            .then(me => {
+                if (me) myUserId = me.userId || me.id;
+            })
+            .catch(err => console.error("Error fetching me for search filter", err));
+        
+        searchInput.addEventListener("input", (e) => {
+            clearTimeout(debounceTimer);
+            const query = e.target.value.trim();
+            
+            if (!query) {
+                dropdown.style.display = "none";
+                return;
+            }
+            
+            dropdown.style.display = "block";
+            dropdown.innerHTML = `<div style="padding: 12px; color: rgba(255,255,255,0.6); text-align: center;">Searching...</div>`;
+            
+            debounceTimer = setTimeout(async () => {
                 try {
                     const response = await fetch(`/api/user/search?q=${encodeURIComponent(query)}`, {
                         headers: { "Authorization": `Bearer ${token}` }
                     });
-                    if (response.ok) {
-                        const users = await response.json();
-                        if (users && users.length > 0) {
-                            // Just jump to the first user for demonstration
-                            window.location.href = `/profile.html?userId=${users[0].id}`;
-                        } else {
-                            alert("No users found matching: " + query);
-                        }
+                    
+                    if (!response.ok) {
+                        throw new Error("API error");
                     }
+                    
+                    const users = await response.json();
+                    dropdown.innerHTML = "";
+                    
+                    // Filter out my own profile and ensure we have results
+                    const filteredUsers = users.filter(u => u.userId !== myUserId);
+                    
+                    if (filteredUsers.length === 0) {
+                        dropdown.innerHTML = `<div style="padding: 12px; color: rgba(255,255,255,0.6); text-align: center;">No users found</div>`;
+                        return;
+                    }
+                    
+                    filteredUsers.forEach(u => {
+                        const row = document.createElement("div");
+                        row.style.cssText = `
+                            display: flex;
+                            align-items: center;
+                            padding: 12px;
+                            cursor: pointer;
+                            border-bottom: 1px solid rgba(255,255,255,0.05);
+                            transition: background 0.2s;
+                        `;
+                        row.onmouseover = () => row.style.background = "rgba(255,255,255,0.05)";
+                        row.onmouseout = () => row.style.background = "transparent";
+                        
+                        // Use actual userId from backend, which avoids undefined resulting in NaN
+                        row.onclick = () => {
+                            window.location.href = `/profile.html?userId=${u.userId}`;
+                        };
+                        
+                        const avatarLetter = (u.username || "U").charAt(0).toUpperCase();
+                        
+                        row.innerHTML = `
+                            <div style="width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, #ff6b35, #f7c59f); color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; margin-right: 12px; flex-shrink: 0;">
+                                ${avatarLetter}
+                            </div>
+                            <div style="display: flex; flex-direction: column; overflow: hidden;">
+                                <strong style="color: #fff; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; font-size: 0.95rem;">${u.fullName || u.username}</strong>
+                                <span style="color: rgba(255,255,255,0.5); font-size: 0.85rem;">@${u.username}</span>
+                            </div>
+                        `;
+                        dropdown.appendChild(row);
+                    });
+                    
                 } catch(err) {
                     console.error("Search failed", err);
+                    dropdown.innerHTML = `<div style="padding: 12px; color: #ff6b35; text-align: center;">Error loading results</div>`;
                 }
+            }, 300);
+        });
+        
+        document.addEventListener("click", (e) => {
+            if (!searchBoxContainer.contains(e.target)) {
+                dropdown.style.display = "none";
+            }
+        });
+        
+        searchInput.addEventListener("focus", () => {
+            if (searchInput.value.trim()) {
+                dropdown.style.display = "block";
             }
         });
     }
