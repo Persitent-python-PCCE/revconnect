@@ -2,7 +2,7 @@ package com.revconnect.revconnect.notification.controller;
 
 import com.revconnect.revconnect.notification.dto.NotificationResponse;
 import com.revconnect.revconnect.notification.service.NotificationService;
-import com.revconnect.revconnect.user.entity.User;
+// Removed User import
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -27,28 +27,28 @@ public class NotificationController {
             Authentication authentication,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        User user = (User) authentication.getPrincipal();
+        Long userId = (Long) authentication.getPrincipal();
         Pageable pageable = PageRequest.of(page, size);
-        return ResponseEntity.ok(notificationService.getNotifications(user.getId(), pageable));
+        return ResponseEntity.ok(notificationService.getNotifications(userId, pageable));
     }
     
     @GetMapping("/unread-count")
     public ResponseEntity<Map<String, Long>> getUnreadCount(Authentication authentication) {
-        User user = (User) authentication.getPrincipal();
-        return ResponseEntity.ok(Map.of("count", notificationService.getUnreadCount(user.getId())));
+        Long userId = (Long) authentication.getPrincipal();
+        return ResponseEntity.ok(Map.of("count", notificationService.getUnreadCount(userId)));
     }
     
     @PutMapping("/{id}/read")
     public ResponseEntity<Void> markAsRead(@PathVariable Long id, Authentication authentication) {
-        User user = (User) authentication.getPrincipal();
-        notificationService.markAsRead(user.getId(), id);
+        Long userId = (Long) authentication.getPrincipal();
+        notificationService.markAsRead(userId, id);
         return ResponseEntity.ok().build();
     }
     
     @PutMapping("/read-all")
     public ResponseEntity<Void> markAllAsRead(Authentication authentication) {
-        User user = (User) authentication.getPrincipal();
-        notificationService.markAllAsRead(user.getId());
+        Long userId = (Long) authentication.getPrincipal();
+        notificationService.markAllAsRead(userId);
         return ResponseEntity.ok().build();
     }
 }
