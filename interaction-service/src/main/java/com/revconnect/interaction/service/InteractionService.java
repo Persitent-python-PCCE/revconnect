@@ -1,5 +1,11 @@
 package com.revconnect.interaction.service;
 
+import com.revconnect.interaction.client.NotificationServiceClient;
+import com.revconnect.interaction.client.PostServiceClient;
+import com.revconnect.interaction.client.UserServiceClient;
+import com.revconnect.interaction.client.dto.CreateNotificationRequest;
+import com.revconnect.interaction.client.dto.PostResponse;
+import com.revconnect.interaction.client.dto.UserProfileResponse;
 import com.revconnect.interaction.dto.*;
 import com.revconnect.interaction.entity.*;
 import com.revconnect.interaction.repository.*;
@@ -16,16 +22,27 @@ public class InteractionService {
     private final CommentRepository comments;
     private final ShareRepository shares;
     private final RepostRepository reposts;
+    private final PostServiceClient postServiceClient;
+    private final UserServiceClient userServiceClient;
+    private final NotificationServiceClient notificationServiceClient;
 
     public InteractionService(PostLikeRepository likes, CommentRepository comments,
-                              ShareRepository shares, RepostRepository reposts) {
+                              ShareRepository shares, RepostRepository reposts,
+                              PostServiceClient postServiceClient,
+                              UserServiceClient userServiceClient,
+                              NotificationServiceClient notificationServiceClient) {
         this.likes = likes; this.comments = comments; this.shares = shares; this.reposts = reposts;
+        this.postServiceClient = postServiceClient;
+        this.userServiceClient = userServiceClient;
+        this.notificationServiceClient = notificationServiceClient;
     }
 
     @Transactional
     public void likePost(Long postId, Long userId) {
+        PostResponse post = postServiceClient.getPost(postId);
         if (!likes.existsByPostIdAndUserId(postId, userId)) {
             PostLike like = new PostLike(); like.setPostId(postId); like.setUserId(userId); likes.save(like);
+            notifyPostOwner(post, userId, "liked your post.", "LIKE");
         }
     }
 
@@ -33,8 +50,11 @@ public class InteractionService {
 
     @Transactional
     public CommentResponse addComment(Long postId, Long userId, CommentRequest request) {
+        PostResponse post = postServiceClient.getPost(postId);
         Comment comment = new Comment(); comment.setPostId(postId); comment.setUserId(userId); comment.setContent(normalize(request.getContent()));
-        return toResponse(comments.save(comment));
+        Comment saved = comments.save(comment);
+        notifyPostOwner(post, userId, "commented on your post.", "COMMENT");
+        return toResponse(saved);
     }
 
     @Transactional(readOnly = true)
@@ -53,12 +73,19 @@ public class InteractionService {
         Comment comment = requireComment(commentId); verifyOwner(comment, userId); comments.delete(comment);
     }
 
-    @Transactional public void sharePost(Long postId, Long userId) { Share share = new Share(); share.setPostId(postId); share.setUserId(userId); shares.save(share); }
+    @Transactional
+    public void sharePost(Long postId, Long userId) {
+        PostResponse post = postServiceClient.getPost(postId);
+        Share share = new Share(); share.setPostId(postId); share.setUserId(userId); shares.save(share);
+        notifyPostOwner(post, userId, "shared your post.", "SHARE");
+    }
 
     @Transactional
     public void repostPost(Long postId, Long userId) {
+        PostResponse post = postServiceClient.getPost(postId);
         if (!reposts.existsByPostIdAndUserId(postId, userId)) {
             Repost repost = new Repost(); repost.setPostId(postId); repost.setUserId(userId); reposts.save(repost);
+            notifyPostOwner(post, userId, "reposted your post.", "REPOST");
         }
     }
 
@@ -78,4 +105,20 @@ public class InteractionService {
     private Comment requireComment(Long id) { return comments.findById(id).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Comment not found")); }
     private void verifyOwner(Comment comment, Long userId) { if (!comment.getUserId().equals(userId)) throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You are not allowed to modify this comment"); }
     private CommentResponse toResponse(Comment comment) { return new CommentResponse(comment, null); }
+
+    private void notifyPostOwner(PostResponse post, Long actorId, String actionMessage, String type) {
+        Long recipientId = post.getUserId();
+        if (recipientId == null || recipientId.equals(actorId)) return;
+
+        UserProfileResponse actor = userServiceClient.getUser(actorId);
+        String actorUsername = actor.getUsername();
+        notificationServiceClient.createNotification(new CreateNotificationRequest(
+                recipientId,
+                actorId,
+                actorUsername,
+                actorUsername + " " + actionMessage,
+                type,
+                post.getId()
+        ));
+    }
 }
