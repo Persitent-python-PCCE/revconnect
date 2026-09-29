@@ -1,0 +1,6 @@
+.git
+.m2-repository
+**/target
+**/.idea
+uploads
+.env

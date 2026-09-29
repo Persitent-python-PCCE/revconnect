@@ -1,0 +1,222 @@
+services:
+
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_PASSWORD:-root}
+    ports:
+      - "3307:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${MYSQL_PASSWORD:-root}"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    volumes:
+      - mysql-data:/var/lib/mysql
+
+
+  redis:
+    image: redis:7.4-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
+
+  service-discovery:
+    build:
+      context: .
+      args:
+        MODULE: service-discovery
+    ports:
+      - "8761:8761"
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8761/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+
+  config-server:
+    build:
+      context: .
+      args:
+        MODULE: config-server
+    environment:
+      EUREKA_URL: http://service-discovery:8761/eureka/
+      CONFIG_REPO_PATH: file:/workspace/configrepo
+    ports:
+      - "8888:8888"
+    depends_on:
+      service-discovery:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8888/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 40s
+
+
+  api-gateway:
+    build:
+      context: .
+      args:
+        MODULE: api-gateway
+    environment: &cloud-env
+      CONFIG_SERVER_URL: http://config-server:8888
+      EUREKA_URL: http://service-discovery:8761/eureka/
+      MYSQL_HOST: mysql
+      MYSQL_USER: root
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-root}
+      REDIS_HOST: redis
+      JWT_SECRET: ${JWT_SECRET:-revconnect-development-secret-key-must-be-32-bytes-or-longer}
+      FRONTEND_ORIGIN: http://localhost:8080
+    ports:
+      - "9000:9000"
+    depends_on:
+      service-discovery:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+
+  user-service:
+    build:
+      context: .
+      args:
+        MODULE: user-service
+    environment: *cloud-env
+    depends_on:
+      mysql:
+        condition: service_healthy
+      service-discovery:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
+
+
+  post-service:
+    build:
+      context: .
+      args:
+        MODULE: post-service
+    environment: *cloud-env
+    depends_on:
+      mysql:
+        condition: service_healthy
+      service-discovery:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
+
+
+  feed-service:
+    build:
+      context: .
+      args:
+        MODULE: feed-service
+    environment: *cloud-env
+    depends_on:
+      mysql:
+        condition: service_healthy
+      service-discovery:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
+
+
+  connection-service:
+    build:
+      context: .
+      args:
+        MODULE: connection-service
+    environment: *cloud-env
+    depends_on:
+      mysql:
+        condition: service_healthy
+      service-discovery:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
+
+
+  interaction-service:
+    build:
+      context: .
+      args:
+        MODULE: interaction-service
+    environment: *cloud-env
+    depends_on:
+      mysql:
+        condition: service_healthy
+      service-discovery:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
+
+
+  notification-service:
+    build:
+      context: .
+      args:
+        MODULE: notification-service
+    environment: *cloud-env
+    depends_on:
+      mysql:
+        condition: service_healthy
+      service-discovery:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
+
+
+  product-service:
+    build:
+      context: .
+      args:
+        MODULE: product-service
+    environment: *cloud-env
+    depends_on:
+      mysql:
+        condition: service_healthy
+      service-discovery:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
+
+
+  analytics-service:
+    build:
+      context: .
+      args:
+        MODULE: analytics-service
+    environment: *cloud-env
+    depends_on:
+      mysql:
+        condition: service_healthy
+      service-discovery:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
+
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      api-gateway:
+        condition: service_started
+
+
+volumes:
+  mysql-data:
