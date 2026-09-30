@@ -15,7 +15,6 @@ spec:
             - { name: EUREKA_URL, value: http://service-discovery:8761/eureka/ }
             - { name: MYSQL_HOST, value: mysql }
             - { name: MYSQL_USER, value: root }
-            - { name: REDIS_HOST, value: redis }
             - name: MYSQL_PASSWORD
               valueFrom: { secretKeyRef: { name: revconnect-secrets, key: MYSQL_PASSWORD } }
             - name: JWT_SECRET

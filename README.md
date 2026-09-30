@@ -7,7 +7,7 @@ This modernization keeps the existing domain behavior while separating data owne
 - `configrepo/` is the central, environment-variable-driven configuration source.
 - `config-server/` serves that configuration on port 8888.
 - `service-discovery/` is Eureka on port 8761.
-- `api-gateway/` is the only public API (port 9000). It routes by service ID, validates JWTs for non-public writes, injects `X-User-Id`, applies Redis rate limiting to high-traffic routes, and returns Resilience4j circuit-breaker fallbacks.
+- `api-gateway/` is the only public API (port 9000). It routes by service ID, validates JWTs for non-public writes, injects `X-User-Id`, and returns Resilience4j circuit-breaker fallbacks.
 - Feed and Interaction use OpenFeign service IDs, so calls are discovered through Eureka rather than hard-coded localhost URLs.
 - `frontend/` is served by Nginx on port 8080 and proxies `/api` through the gateway.
 
@@ -25,7 +25,7 @@ Set `MYSQL_PASSWORD` and a unique `JWT_SECRET` in your shell or a non-committed 
 2. Start the Compose stack and wait for all eight names to appear as `UP` in Eureka.
 3. Register with `POST /api/auth/register` and log in at `POST /api/auth/login` through port 9000. Use the returned token as `Authorization: Bearer <token>` for protected calls.
 4. Use the frontend to create a post, like/comment/share/repost it, follow/connect a user, create a business product, and view notification and analytics screens. These calls exercise the respective gateway route and service database.
-5. Stop one service, then call its gateway route. The gateway should return `503` JSON from `/fallback/{service}` rather than leaking a connection exception. Repeated requests to a rate-limited route should return `429`; Redis is the rate-limit store.
+5. Stop one service, then call its gateway route. The gateway should return `503` JSON from `/fallback/{service}` rather than leaking a connection exception.
 
 ## Delivery
 

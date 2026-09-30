@@ -18,7 +18,6 @@ data:
   EUREKA_URL: http://service-discovery:8761/eureka/
   MYSQL_HOST: mysql
   MYSQL_USER: root
-  REDIS_HOST: redis
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -39,22 +38,6 @@ apiVersion: v1
 kind: Service
 metadata: { name: mysql, namespace: revconnect }
 spec: { selector: { app: mysql }, ports: [{ port: 3306, targetPort: 3306 }] }
----
-apiVersion: apps/v1
-kind: Deployment
-metadata: { name: redis, namespace: revconnect }
-spec:
-  replicas: 1
-  selector: { matchLabels: { app: redis } }
-  template:
-    metadata: { labels: { app: redis } }
-    spec: { containers: [{ name: redis, image: redis:7.4-alpine, ports: [{ containerPort: 6379 }] }] }
----
-apiVersion: v1
-kind: Service
-metadata: { name: redis, namespace: revconnect }
-spec: { selector: { app: redis }, ports: [{ port: 6379, targetPort: 6379 }] }
----
 apiVersion: apps/v1
 kind: Deployment
 metadata: { name: service-discovery, namespace: revconnect }

@@ -17,6 +17,6 @@ Platform services added in the same structure as the supplied e-commerce referen
 - `configrepo`: externalized properties for every service, with no committed database password.
 - `config-server`: Spring Cloud Config Server (native repository for local and container runs).
 - `service-discovery`: Eureka Server.
-- `api-gateway`: service-id routing, JWT edge authentication, Redis rate limiting and Resilience4j fallback routes.
+- `api-gateway`: service-id routing, JWT edge authentication and Resilience4j fallback routes.
 
 Ports are unique: user 8081, post 8082, feed 8083, connection 8084, interaction 8085, notification 8086, product 8087, analytics 8088, gateway 9000, Config Server 8888, and Eureka 8761.
